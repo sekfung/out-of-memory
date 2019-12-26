@@ -1,0 +1,11 @@
+{
+  "success": "成功",
+  "error": "失败",
+  "invalid_param": "无效参数",
+  "tag_not_exist": "标签不存在",
+  "tag_exist": "标签已存在",
+  "get_tag_failed": "获取标签失败",
+  "update_tag_failed": "更新标签失败",
+  "delete_tag_failed": "删除标签失败"
+
+}

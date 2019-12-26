@@ -1,0 +1,237 @@
+info:
+  contact: {}
+  license: {}
+paths:
+  /api/v1/articles:
+    post:
+      parameters:
+      - description: Title, limit 50 character
+        in: query
+        name: Title
+        required: true
+        type: string
+      - description: Content, not allow to be empty
+        in: query
+        name: Content
+        required: true
+        type: string
+      - description: Tags
+        in: query
+        name: Tags
+        type: array
+      - description: Categories
+        in: query
+        name: Categories
+        type: integer
+      - description: 'Article type, [md, doc], default value: md'
+        in: query
+        name: Type
+        type: string
+      - description: 'Article State, [deleted, publish, draft], default value: publish'
+        in: query
+        name: State
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":200,"data":[],"msg":"ok"}'
+          schema:
+            type: string
+      summary: Add Article
+      tags:
+      - Article
+  /api/v1/category:
+    post:
+      parameters:
+      - description: Category name, limit up to 50 characters
+        in: query
+        name: Name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":200,"data":[],"msg":"ok"}'
+          schema:
+            type: string
+      summary: Delete Category
+      tags:
+      - Category
+  /api/v1/tags:
+    delete:
+      parameters:
+      - description: Category ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":200,"data":[],"msg":"ok"}'
+          schema:
+            type: string
+      summary: Delete Tag
+      tags:
+      - Tag
+    get:
+      parameters:
+      - description: Page number, default 1
+        in: query
+        name: page
+        type: string
+      - description: Limit how much results returned per page, default 20
+        in: query
+        name: per_page
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":200,"data":[],"msg":"ok"}'
+          schema:
+            type: string
+      summary: Get Tags
+      tags:
+      - Tag
+    post:
+      parameters:
+      - description: 'Tag state, 0: disable, 1:enable, default 1'
+        in: query
+        name: state
+        type: string
+      - description: Tag name, max length 20 characters
+        in: query
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":200,"data":[],"msg":"ok"}'
+          schema:
+            type: string
+      summary: Add Tag
+      tags:
+      - Tag
+  /api/v1/tags/:
+    get:
+      parameters:
+      - description: Category ID,
+        in: query
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":200,"data":[],"msg":"ok"}'
+          schema:
+            type: string
+      summary: Get Tag
+      tags:
+      - Tag
+    put:
+      parameters:
+      - description: Category ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      - description: Category name
+        in: query
+        name: name
+        required: true
+        type: string
+      - description: Category state
+        in: query
+        name: state
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":200,"data":[],"msg":"ok"}'
+          schema:
+            type: string
+      summary: Update Tag
+      tags:
+      - Tag
+  /auth:
+    post:
+      parameters:
+      - description: User identifier, such as username, email, phone, or uid return
+          by website supported oauth2.0
+        in: query
+        name: identifier
+        required: true
+        type: string
+      - description: Credential, if user sign in website inside (identifier_from is
+          0), credential is password, otherwise it's access token
+        in: query
+        name: credential
+        required: true
+        type: string
+      - description: IdentityType, such as username, email, phone, github, weibo,
+          wechat...
+        in: query
+        name: identity_type
+        required: true
+        type: string
+      - description: IdentifierFrom, range is 0 to 1,  0 means website inside, 1 is
+          outside
+        in: query
+        name: identifier_from
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":200,"data":[],"msg":"ok"}'
+          schema:
+            type: string
+      summary: Get Token
+      tags:
+      - Login
+  /register:
+    post:
+      parameters:
+      - description: User identifier, such as username, email, phone, or uid return
+          by website supported oauth2.0
+        in: query
+        name: identifier
+        required: true
+        type: string
+      - description: Credential, if user sign in website inside (identifier_from is
+          0), credential is password, otherwise it's access token
+        in: query
+        name: credential
+        required: true
+        type: string
+      - description: IdentityType, such as username, email, phone, github, weibo,
+          wechat...
+        in: query
+        name: identity_type
+        required: true
+        type: string
+      - description: IdentifierFrom, range is 0 to 1,  0 means website inside, 1 is
+          outside
+        in: query
+        name: identifier_from
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":200,"data":[],"msg":"ok"}'
+          schema:
+            type: string
+      summary: Fresh Man Register
+      tags:
+      - Login
