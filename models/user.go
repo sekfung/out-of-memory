@@ -15,13 +15,12 @@
 package models
 
 import (
-	"github.com/go-xorm/xorm"
+	"github.com/jinzhu/gorm"
 	"outofmemory/errors"
-	"time"
 )
 
 type User struct {
-	Id        uint32    `json:"-"`
+	BaseModel
 	Uid       uint32    `json:"uid"`
 	Username  string    `json:"username"`
 	Gender    string    `json:"gender"`
@@ -30,9 +29,6 @@ type User struct {
 	Website   string    `json:"website"`
 	Phone     string    `json:"phone"`
 	AvatarUrl string    `json:"avatar_url"`
-	CreatedAt time.Time `xorm:"created" json:"-"`
-	UpdatedAt time.Time `xorm:"updated" json:"-"`
-	DeletedAt time.Time `xorm:"deleted" json:"-"`
 }
 
 func GetUserInfo(uid uint32) (interface{}, error) {
@@ -64,16 +60,16 @@ func UpdateUserInfo(data map[string]interface{}) error {
 		return err
 	}
 
-	_, err = engine.Table("user").Where("uid = ?", user.Uid).Update(&userData)
+	err = db.Table("user").Where("uid = ?", user.Uid).Update(&userData).Error
 	return err
 }
 
 func exitUserByUID(uid uint32) (*User, error) {
 	user := User{}
-	err := engine.SQL("select * from user where uid = ?", uid).Find(&user)
+	err := db.Exec("select * from user where uid = ?", uid).Find(&user).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return nil, errors.ErrUserNotExist
 		default:
 			return nil, errors.ErrUnknownError

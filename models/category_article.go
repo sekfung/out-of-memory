@@ -1,15 +1,10 @@
 package models
 
-import "time"
-
 type CategoryArticle struct {
-	Id         uint32 `json:"-"`
+	BaseModel
 	AuthorId   uint32 `json:"author_id"`
 	CategoryId uint32 `json:"category_id"`
 	ArticleId  uint32 `json:"article_id"`
-	CreatedAt      time.Time   `xorm:"created" json:"-"`
-	UpdatedAt      time.Time   `xorm:"updated" json:"-"`
-	DeletedAt      time.Time   `xorm:"deleted" json:"-"`
 }
 
 func mustGetCategoryForUser(uid uint32) []Category {
@@ -21,11 +16,11 @@ func mustGetCategoryForUser(uid uint32) []Category {
 	if err != nil {
 		return categories
 	}
-	err = engine.SQL("select category_id from category_article where author_id = ?", uid).Find(&categoryIDs)
+	err = db.Exec("select category_id from category_article where author_id = ?", uid).Find(&categoryIDs).Error
 	if err != nil {
 		return categories
 	}
-	err = engine.SQL("select category_id, name from category where category_id in (?) and state = ?", categoryIDs, TagStateToUint["enable"]).Find(&categories)
+	err = db.Exec("select category_id, name from category where category_id in (?) and state = ?", categoryIDs, TagStateToUint["enable"]).Find(&categories).Error
 	if err != nil {
 		return categories
 	}

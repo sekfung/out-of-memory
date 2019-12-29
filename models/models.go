@@ -16,51 +16,99 @@ package models
 
 import (
 	"fmt"
-	"github.com/go-xorm/xorm"
+	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"log"
 	"outofmemory/settings"
+	"time"
 )
 
-var engine *xorm.Engine
+var db *gorm.DB
 
-func Setup() error {
-	err := initDB()
-	err = syncDB()
-	return err
-}
-
-func initDB() error {
+func Setup() {
 	var err error
 	databaseSettings := settings.DatabaseSetting
-	serverSettings := settings.ServerSetting
-
-	var dbName = databaseSettings.ProName
-	if serverSettings.RunMode == "debug" {
-		dbName = databaseSettings.DevName
-	}
-	engine, err = xorm.NewEngine(databaseSettings.Type, fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&loc=Local&charset=utf8",
+	db, err = gorm.Open(settings.DatabaseSetting.Type, fmt.Sprintf("%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local",
 		databaseSettings.User,
 		databaseSettings.Password,
 		databaseSettings.Host,
-		databaseSettings.Port,
-		dbName))
-	engine.ShowSQL(serverSettings.RunMode == "debug")
-	engine.ShowExecTime(serverSettings.RunMode == "debug")
+		databaseSettings.Name))
+
 	if err != nil {
 		log.Fatalf("Open engine error : %v", err)
-		return err
 	}
-	engine.SetMaxIdleConns(10)
-	engine.SetMaxOpenConns(100)
-	return err
+	db.SingularTable(true)
+	db.Callback().Create().Replace("gorm:update_time_stamp", updateTimeStampForCreateCallback)
+	db.Callback().Update().Replace("gorm:update_time_stamp", updateTimeStampForUpdateCallback)
+	db.Callback().Delete().Replace("gorm:delete", deleteCallback)
+	db.DB().SetMaxIdleConns(10)
+	db.DB().SetMaxOpenConns(100)
 }
-
-func syncDB() error {
-	err := engine.Sync2(new(Article), new(Category), new(CategoryArticle), new(Tag), new(TagArticle), new(User), new(UserAuth))
-	return err
-}
-
+// CloseDB closes database connection (unnecessary)
 func CloseDB() {
-	defer engine.Close()
+	defer db.Close()
 }
+
+// updateTimeStampForCreateCallback will set `CreatedAt`, `ModifiedAt` when creating
+func updateTimeStampForCreateCallback(scope *gorm.Scope) {
+	if !scope.HasError() {
+		nowTime := time.Now().Unix()
+		if createTimeField, ok := scope.FieldByName("CreatedAt"); ok {
+			if createTimeField.IsBlank {
+				createTimeField.Set(nowTime)
+			}
+		}
+
+		if modifyTimeField, ok := scope.FieldByName("ModifiedAt"); ok {
+			if modifyTimeField.IsBlank {
+				modifyTimeField.Set(nowTime)
+			}
+		}
+	}
+}
+
+// updateTimeStampForUpdateCallback will set `ModifiedAt` when updating
+func updateTimeStampForUpdateCallback(scope *gorm.Scope) {
+	if _, ok := scope.Get("gorm:update_column"); !ok {
+		scope.SetColumn("ModifiedAt", time.Now().Unix())
+	}
+}
+
+// deleteCallback will set `DeletedAt` where deleting
+func deleteCallback(scope *gorm.Scope) {
+	if !scope.HasError() {
+		var extraOption string
+		if str, ok := scope.Get("gorm:delete_option"); ok {
+			extraOption = fmt.Sprint(str)
+		}
+
+		deletedOnField, hasDeletedOnField := scope.FieldByName("DeletedAt")
+
+		if !scope.Search.Unscoped && hasDeletedOnField {
+			scope.Raw(fmt.Sprintf(
+				"UPDATE %v SET %v=%v%v%v",
+				scope.QuotedTableName(),
+				scope.Quote(deletedOnField.DBName),
+				scope.AddToVars(time.Now().Unix()),
+				addExtraSpaceIfExist(scope.CombinedConditionSql()),
+				addExtraSpaceIfExist(extraOption),
+			)).Exec()
+		} else {
+			scope.Raw(fmt.Sprintf(
+				"DELETE FROM %v%v%v",
+				scope.QuotedTableName(),
+				addExtraSpaceIfExist(scope.CombinedConditionSql()),
+				addExtraSpaceIfExist(extraOption),
+			)).Exec()
+		}
+	}
+}
+
+// addExtraSpaceIfExist adds a separator
+func addExtraSpaceIfExist(str string) string {
+	if str != "" {
+		return " " + str
+	}
+	return ""
+}
+

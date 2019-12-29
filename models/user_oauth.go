@@ -16,8 +16,8 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/go-xorm/xorm"
 	"github.com/google/uuid"
+	"github.com/jinzhu/gorm"
 	"golang.org/x/crypto/bcrypt"
 	"outofmemory/errors"
 	"time"
@@ -33,9 +33,9 @@ type UserAuth struct {
 	Verified       bool   `json:"verified"`        // is verified
 	VerifyDate     int64  `json:"verify_date"`     // verify date
 	LastLoginTime  int64  `json:"last_login_time"`
-	CreatedAt      int64  `xorm:"created" json:"-"`
-	UpdatedAt      int64  `xorm:"updated" json:"-"`
-	DeletedAt      int64  `xorm:"deleted" json:"-"`
+	CreatedAt      int64  `gorm:"created" json:"-"`
+	UpdatedAt      int64  `gorm:"updated" json:"-"`
+	DeletedAt      int64  `gorm:"deleted" json:"-"`
 }
 
 // 新用户注册
@@ -60,10 +60,10 @@ func Register(data map[string]interface{}) (*UserAuth, error) {
 		}
 		userAuth.Credential = string(hash)
 	}
-	session := engine.NewSession()
+	session := db.Begin()
 	defer session.Close()
 	err := session.Begin()
-	if _, err = session.Insert(&userAuth); err != nil {
+	if err = session.Create(&userAuth); err != nil {
 		session.Rollback()
 		return &userAuth, errors.ErrUnknownError
 	}
@@ -83,7 +83,7 @@ func Register(data map[string]interface{}) (*UserAuth, error) {
 	if userAuth.IdentityType == "email" {
 		user.Email = userAuth.Identifier
 	}
-	if _, err := session.Insert(&user); err != nil {
+	if err := session.Create(&user).Error; err != nil {
 		session.Rollback()
 		return &userAuth, errors.ErrUnknownError
 	}
@@ -100,11 +100,11 @@ func CheckUserAuth(param []byte) (*UserAuth, error) {
 	)
 	_ = json.Unmarshal(param, &userAuthForm)
 
-	err := engine.SQL("select uid, credential from user_auth where identifier = ? and identity_type = ?",
-		userAuthForm.Identifier, userAuthForm.IdentityType).Find(&userResult)
+	err := db.Exec("select uid, credential from user_auth where identifier = ? and identity_type = ?",
+		userAuthForm.Identifier, userAuthForm.IdentityType).Find(&userResult).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return nil, errors.ErrUserNotExist
 		default:
 			return nil, errors.ErrUnknownError
@@ -121,14 +121,11 @@ func CheckUserAuth(param []byte) (*UserAuth, error) {
 
 func CheckUserExist(identifier string, identityType string) (bool, error) {
 	var userAuth UserAuth
-	isExist, err := engine.Select("uid").Where("identifier = ?", identifier).And("identity_type = ?", identityType).Get(&userAuth)
-	if !isExist {
-		return false, errors.ErrUserNotExist
-	}
+	err := db.Select("uid").Where("identifier = ?", identifier).Where("identity_type = ?", identityType).First(&userAuth).Error
 	//err := engine.SQL("select uid from user_auth where identifier = ? and identity_type = ?", identifier, identityType).Find(&userAuth)
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return false, errors.ErrUserNotExist
 		default:
 			return false, errors.ErrUnknownError

@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/go-xorm/xorm"
+	"github.com/jinzhu/gorm"
 	"outofmemory/errors"
 )
 
@@ -21,7 +21,7 @@ func AddComment(data map[string]interface{}) (interface{}, error){
 		comment Comment
 	)
 
-	_, err := engine.Insert(commentData)
+	err := db.Create(&commentData)
 	if err != nil {
 		return nil, errors.ErrCreateCommentFailed
 	}
@@ -30,10 +30,10 @@ func AddComment(data map[string]interface{}) (interface{}, error){
 
 func existCommentByID(commentID uint32) (Comment, error) {
 	var comment Comment
-	err := engine.Where("comment_id = ?", commentID).Find(&comment)
+	err := db.Where("comment_id = ?", commentID).Find(&comment).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return comment, errors.ErrCommentNotExist
 		default:
 			return comment, errors.ErrGetCommentFailed

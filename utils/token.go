@@ -20,7 +20,7 @@ func GenerateToken(uid uint32) (string, error) {
 		uid,
 		jwt.StandardClaims{
 			ExpiresAt: expireTime.Unix(),
-			Issuer:    "out-of-memory",
+			Issuer:    "outofmemory",
 		},
 	}
 	tokenClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

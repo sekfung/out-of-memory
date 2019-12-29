@@ -1,15 +1,10 @@
 package models
 
-import "time"
-
 type TagArticle struct {
-	Id        uint32    `json:"-"`
+	BaseModel
 	AuthorId  uint32    `json:"author_id"`
 	TagId     uint32    `json:"tag_id"`
 	ArticleId uint32    `json:"article_id"`
-	CreatedAt time.Time `xorm:"created" json:"-"`
-	UpdatedAt time.Time `xorm:"updated" json:"-"`
-	DeletedAt time.Time `xorm:"deleted" json:"-"`
 }
 
 //
@@ -22,11 +17,11 @@ func mustGetTagsForUser(uid uint32) []Tag {
 	if err != nil {
 		return tags
 	}
-	err = engine.Table("tag_article").Select("tag_id").Where("author_id = ?", uid).Find(&tagIDs)
+	err = db.Table("tag_article").Select("tag_id").Where("author_id = ?", uid).Find(&tagIDs).Error
 	if err != nil {
 		return tags
 	}
-	err = engine.SQL("select tag_id, name from tag where tag_id in (?) and state = ?", tagIDs, TagStateToUint["enable"]).Find(&tags)
+	err = db.Exec("select tag_id, name from tag where tag_id in (?) and state = ?", tagIDs, TagStateToUint["enable"]).Find(&tags).Error
 	if err != nil {
 		return tags
 	}

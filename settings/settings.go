@@ -37,8 +37,7 @@ type Database struct {
 	Password string
 	Host     string
 	Port     string
-	DevName  string
-	ProName  string
+	Name     string
 	SSLMode  string
 }
 

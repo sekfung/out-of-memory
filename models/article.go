@@ -15,8 +15,8 @@
 package models
 
 import (
-	"github.com/go-xorm/xorm"
 	"github.com/google/uuid"
+	"github.com/jinzhu/gorm"
 	"outofmemory/errors"
 	"time"
 )
@@ -32,17 +32,17 @@ type Article struct {
 	ArticleId    uint32      `json:"aid"`
 	Title        string      `json:"title"`
 	Content      string      `json:"content"`
-	Tags         interface{} `json:"tags"`
-	Category     interface{} `json:"category"`
-	Comments     interface{} `json:"comments"`
+	Tags         interface{} `gorm:"-" json:"tags"`
+	Category     interface{} `gorm:"-" json:"category"`
+	Comments     interface{} `gorm:"-" json:"comments"`
 	Type         string      `json:"type"` // article type: md, normal
 	State        uint8       `json:"-"`       // 0: deleted 1: publish 2: draft
 	AuthorId     uint32      `json:"aid"`
 	AuthorName   string      `json:"author_name"`
 	AuthorAvatar string      `json:"author_avatar"`
-	CreatedAt    time.Time   `xorm:"created" json:"-"`
-	UpdatedAt    time.Time   `xorm:"updated" json:"-"`
-	DeletedAt    time.Time   `xorm:"deleted" json:"-"`
+	CreatedAt    time.Time   `gorm:"created" json:"-"`
+	UpdatedAt    time.Time   `gorm:"updated" json:"-"`
+	DeletedAt    time.Time   `gorm:"deleted" json:"-"`
 }
 
 func GetArticlesByTagID(tags []uint32, page, perPage int) ([]*Article, error) {
@@ -63,10 +63,10 @@ func GetArticlesByTagID(tags []uint32, page, perPage int) ([]*Article, error) {
 	}
 
 	var articles []*Article
-	err = engine.Limit((page-1)*perPage, perPage).Find(articles)
+	err = db.Limit(perPage).Offset((page-1)*perPage).Find(articles).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return articles, nil
 		default:
 			return nil, errors.ErrGetArticleFailed
@@ -78,10 +78,10 @@ func GetArticlesByTagID(tags []uint32, page, perPage int) ([]*Article, error) {
 
 func GetArticlesByCategoryID(categoryID uint32, page, perPage int) ([]*Article, error) {
 	var articles []*Article
-	err := engine.Where("category_id = ?", categoryID).Limit((page-1)*perPage, perPage).Find(articles)
+	err := db.Where("category_id = ?", categoryID).Limit(perPage).Offset((page-1)*perPage).Find(articles).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return articles, nil
 		default:
 			return nil, errors.ErrGetArticleFailed
@@ -93,10 +93,10 @@ func GetArticlesByCategoryID(categoryID uint32, page, perPage int) ([]*Article, 
 
 func GetArticlesByAuthorID(authorID uint32, page, perPage int) ([]*Article, error) {
 	var articles []*Article
-	err := engine.Where("author_id = ?", authorID).Limit((page-1)*perPage, perPage).Find(articles)
+	err := db.Where("author_id = ?", authorID).Limit(perPage).Offset((page-1)*perPage).Find(articles).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return nil, nil
 		default:
 			return nil, errors.ErrGetArticleFailed
@@ -108,10 +108,10 @@ func GetArticlesByAuthorID(authorID uint32, page, perPage int) ([]*Article, erro
 
 func GetArticleByID(articleID uint32) (*Article, error) {
 	var article Article
-	err := engine.Where("article_id = ?", articleID).Find(&article)
+	err := db.Where("article_id = ?", articleID).Find(&article).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return &article, nil
 		default:
 			return nil, errors.ErrGetArticleFailed
@@ -162,10 +162,10 @@ func AddArticle(data map[string]interface{}) (interface{}, error) {
 	// assign
 	article.Tags = tags
 	article.Category = category
-	session := engine.NewSession()
+	session := db.Begin()
 	defer session.Close()
 	// insert article
-	if _, err = session.Where("article_id = ?", articleID).Insert(&articleData); err != nil {
+	if err = session.Where("article_id = ?", articleID).Create(&articleData).Error; err != nil {
 		_ = session.Rollback()
 		return nil, errors.ErrCreateArticleFailed
 	}
@@ -176,7 +176,7 @@ func AddArticle(data map[string]interface{}) (interface{}, error) {
 		ArticleId:  articleID,
 		AuthorId:   authorID,
 	}
-	_, err = session.Insert(&categoryArticle)
+	err = session.Create(&categoryArticle).Error
 	if err != nil {
 		_ = session.Rollback()
 		return nil, errors.ErrCreateArticleFailed
@@ -192,7 +192,7 @@ func AddArticle(data map[string]interface{}) (interface{}, error) {
 				TagId:     uint32(tagID),
 			})
 		}
-		_, err := session.Insert(tagArticles)
+		err := session.Create(tagArticles).Error
 		if err != nil {
 			_ = session.Rollback()
 			return nil, errors.ErrUnknownError
@@ -211,7 +211,7 @@ func UpdateArticle(data map[string]interface{}) (*Article, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = engine.Update(articleData)
+	err = db.Update(articleData).Error
 	if err != nil {
 		return nil, errors.ErrUpdateArticleFailed
 	}
@@ -226,16 +226,16 @@ func DeleteArticle(data map[string]interface{}) error {
 	if err != nil {
 		return nil
 	}
-	_, err = engine.Delete(&articleData)
+	err = db.Delete(&articleData).Error
 	return err
 }
 
 func ExistArticleByID(articleID uint32) (*Article, error) {
 	var article Article
-	err := engine.Select("article_id").Where("article_id = ?", articleID).Find(&article)
+	err := db.Select("article_id").Where("article_id = ?", articleID).Find(&article).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return nil, errors.ErrArticleNotExist
 		default:
 			return nil, errors.ErrGetArticleFailed
@@ -246,10 +246,10 @@ func ExistArticleByID(articleID uint32) (*Article, error) {
 
 func ExistArticleByTagID(tagID uint32) (*TagArticle, error) {
 	var tagArticle TagArticle
-	err := engine.Select("tag_id").Where("tag_id = ?", tagID).Find(&tagArticle)
+	err := db.Select("tag_id").Where("tag_id = ?", tagID).Find(&tagArticle).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return nil, errors.ErrArticleNotExist
 		default:
 			return nil, errors.ErrGetArticleFailed
@@ -260,10 +260,10 @@ func ExistArticleByTagID(tagID uint32) (*TagArticle, error) {
 
 func ExistArticleByCategoryID(categoryID uint32) (*Article, error) {
 	var article Article
-	err := engine.Select("category_id").Where("category_id = ?", categoryID).Find(&article)
+	err := db.Select("category_id").Where("category_id = ?", categoryID).Find(&article).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return nil, errors.ErrArticleNotExist
 		default:
 			return nil, errors.ErrUnknownError

@@ -18,7 +18,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 	"outofmemory/errors"
-	"time"
 )
 
 var CategoryStateToUint = map[string]uint8{
@@ -28,13 +27,10 @@ var CategoryStateToUint = map[string]uint8{
 }
 
 type Category struct {
-	Id         uint32 `json:"-"`
+	BaseModel
 	CategoryId uint32 `json:"category_id"`
 	Name       string `json:"name"`
 	State      uint8  `json:"-"` // 0: disable; 1: enable 2: deleted
-	CreatedAt  time.Time   `xorm:"created" json:"-"`
-	UpdatedAt  time.Time   `xorm:"updated" json:"-"`
-	DeletedAt  time.Time   `xorm:"deleted" json:"-"`
 }
 
 func AddCategory(name string, state uint8) (interface{}, error) {
@@ -50,7 +46,7 @@ func AddCategory(name string, state uint8) (interface{}, error) {
 		Name:       name,
 		State:      state,
 	}
-	_, err = engine.Insert(&category)
+	err = db.Create(&category).Error
 	if err != nil {
 		return nil, errors.ErrCreateCategoryFailed
 	}
@@ -63,7 +59,7 @@ func GetCategoryById(categoryId uint32) (interface{}, error) {
 
 func GetCategories(page, perPage int) (interface{}, error) {
 	var categories []*Category
-	err := engine.Where("state <= ?", CategoryStateToUint["enable"]).Limit((page-1)*perPage, perPage).Find(&categories)
+	err := db.Where("state <= ?", CategoryStateToUint["enable"]).Limit(perPage).Offset((page-1)*perPage).Find(&categories)
 	if err != nil {
 		return nil, errors.ErrGetCategoryFailed
 	}
@@ -91,7 +87,7 @@ func deleteCategoryById(categoryID uint32) error {
 		return err
 	}
 	// soft delete
-	_, err = engine.Table("category").Where("category_id= ?", categoryID).Update("state", CategoryStateToUint["deleted"])
+	err = db.Table("category").Where("category_id= ?", categoryID).Update("state", CategoryStateToUint["deleted"]).Error
 	if err != nil {
 		return errors.ErrDeleteCategoryFailed
 	}
@@ -110,7 +106,7 @@ func UpdateCategoryById(data map[string]interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = engine.Table("category").Where("category_id = ?", categoryData.CategoryId).Update(categoryData)
+	err = db.Table("category").Where("category_id = ?", categoryData.CategoryId).Update(categoryData).Error
 	if err != nil {
 		return nil, errors.ErrUpdateCategoryFailed
 	}
@@ -119,7 +115,7 @@ func UpdateCategoryById(data map[string]interface{}) (interface{}, error) {
 
 func existCategoryByID(categoryID uint32) (interface{}, error) {
 	var category Category
-	err := engine.Where("category_id = ? and state <= ?", categoryID, CategoryStateToUint["enable"]).Find(&category)
+	err := db.Where("category_id = ? and state <= ?", categoryID, CategoryStateToUint["enable"]).Find(&category).Error
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
@@ -133,7 +129,7 @@ func existCategoryByID(categoryID uint32) (interface{}, error) {
 
 func existCategoryByName(name string) (interface{}, error) {
 	var category Category
-	err := engine.Where("name = ? and state <= ?", name, CategoryStateToUint["enable"]).Find(&category)
+	err := db.Where("name = ? and state <= ?", name, CategoryStateToUint["enable"]).Find(&category).Error
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:

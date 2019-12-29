@@ -15,7 +15,7 @@
 package models
 
 type BaseModel struct {
-	CreatedAt int64  `xorm:"created" json:"-"`
-	UpdatedAt int64  `xorm:"updated" json:"-"`
-	DeletedAt int64  `xorm:"deleted" json:"-"`
+	CreatedAt int64  `gorm:"created_at" json:"-"`
+	UpdatedAt int64  `gorm:"updated_at" json:"-"`
+	DeletedAt int64  `gorm:"deleted_at" json:"-"`
 }

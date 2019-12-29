@@ -15,20 +15,16 @@
 package models
 
 import (
-	"github.com/go-xorm/xorm"
 	"github.com/google/uuid"
+	"github.com/jinzhu/gorm"
 	"outofmemory/errors"
-	"time"
 )
 
 type Tag struct {
-	Id        uint32 `json:"-"`
+	BaseModel
 	TagId     uint32 `json:"tag_id"`
 	Name      string `json:"name"`
 	State     uint8  `json:"-"` // 0: disable 1: enable
-	CreatedAt time.Time   `xorm:"created" json:"-"`
-	UpdatedAt time.Time   `xorm:"updated" json:"-"`
-	DeletedAt time.Time   `xorm:"deleted" json:"-"`
 }
 
 var TagStateToUint = map[string]uint8{
@@ -49,7 +45,7 @@ func AddTag(data map[string]interface{}) (interface{}, error) {
 	}
 	// generate a short unique tag id
 	tagData.TagId = uuid.New().ID()
-	if _, err := engine.Insert(&tagData); err != nil {
+	if err := db.Create(&tagData).Error; err != nil {
 		return nil, errors.ErrCreateTagFailed
 	}
 	return tag, nil
@@ -61,10 +57,10 @@ func GetTagById(tagID uint32) (interface{}, error) {
 
 func GetTags(pageNum, perPage int) (interface{}, error) {
 	var tags []*Tag
-	err := engine.Select("tag_id, name").Where("state = ?", TagStateToUint["enable"]).Limit((pageNum-1)*perPage, perPage).Find(&tags)
+	err := db.Select("tag_id, name").Where("state = ?", TagStateToUint["enable"]).Limit(perPage).Offset((pageNum-1)*perPage).Find(&tags).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return nil, nil
 		default:
 			return nil, errors.ErrGetArticleFailed
@@ -107,7 +103,7 @@ func UpdateTagByID(data map[string]interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = engine.Table("tag").Select("name, state").Where("tag_id = ?", tag.TagId).Update(&tag)
+	err = db.Table("tag").Select("name, state").Where("tag_id = ?", tag.TagId).Update(&tag).Error
 	if err != nil {
 		return nil, errors.ErrUpdateTagFailed
 	}
@@ -116,16 +112,16 @@ func UpdateTagByID(data map[string]interface{}) (interface{}, error) {
 
 func deleteTagByID(tagID uint32) error {
 	var tag Tag
-	err := engine.Select("tag_id, name, state").Where("tag_id = ?", tagID).Find(&tag)
+	err := db.Select("tag_id, name, state").Where("tag_id = ?", tagID).Find(&tag).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return errors.ErrTagNotExist
 		default:
 			return errors.ErrDeleteTagFailed
 		}
 	}
-	_, err = engine.Table(&tag).Select("state").Where("tag_id = ?", tagID).Update("state", TagStateToUint["deleted"])
+	err = db.Select("state").Where("tag_id = ?", tagID).Update("state", TagStateToUint["deleted"]).Error
 	if err != nil {
 		return errors.ErrDeleteTagFailed
 	}
@@ -134,10 +130,10 @@ func deleteTagByID(tagID uint32) error {
 
 func existTagByID(tagID uint32) (*Tag, error) {
 	var tag Tag
-	err := engine.Select("tag_id, name, state").Where("tag_id = ? and state < ?", tagID, TagStateToUint["deleted"]).Find(&tag)
+	err := db.Select("tag_id, name, state").Where("tag_id = ? and state < ?", tagID, TagStateToUint["deleted"]).Find(&tag).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return nil, errors.ErrTagNotExist
 		default:
 			return nil, errors.ErrGetTagFailed
@@ -148,10 +144,10 @@ func existTagByID(tagID uint32) (*Tag, error) {
 
 func existTagByName(name string) (*Tag, error) {
 	var tag Tag
-	err := engine.Select("tag_id, name, state").Where("name = ? and state < ?", name, TagStateToUint["deleted"]).Find(&tag)
+	err := db.Select("tag_id, name, state").Where("name = ? and state < ?", name, TagStateToUint["deleted"]).Find(&tag).Error
 	if err != nil {
 		switch err {
-		case xorm.ErrNotExist:
+		case gorm.ErrRecordNotFound:
 			return nil, errors.ErrTagNotExist
 		default:
 			return nil, errors.ErrGetTagFailed
@@ -162,7 +158,7 @@ func existTagByName(name string) (*Tag, error) {
 
 func MustCountTags() uint32 {
 	var count uint32
-	_, _ = engine.Table("tag").Where("state = ?", TagStateToUint["enable"]).Count(&count)
+	_ = db.Table("tag").Where("state = ?", TagStateToUint["enable"]).Count(&count).Error
 	return count
 }
 
