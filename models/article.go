@@ -18,7 +18,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 	"outofmemory/errors"
-	"time"
 )
 
 var ArticleState = map[string]uint8{
@@ -28,7 +27,7 @@ var ArticleState = map[string]uint8{
 }
 
 type Article struct {
-	Id           uint32      `json:"-"`
+	BaseModel
 	ArticleId    uint32      `json:"aid"`
 	Title        string      `json:"title"`
 	Content      string      `json:"content"`
@@ -40,9 +39,6 @@ type Article struct {
 	AuthorId     uint32      `json:"aid"`
 	AuthorName   string      `json:"author_name"`
 	AuthorAvatar string      `json:"author_avatar"`
-	CreatedAt    time.Time   `gorm:"created" json:"-"`
-	UpdatedAt    time.Time   `gorm:"updated" json:"-"`
-	DeletedAt    time.Time   `gorm:"deleted" json:"-"`
 }
 
 func GetArticlesByTagID(tags []uint32, page, perPage int) ([]*Article, error) {

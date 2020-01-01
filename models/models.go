@@ -37,7 +37,9 @@ func Setup() {
 	if err != nil {
 		log.Fatalf("Open engine error : %v", err)
 	}
+	db = db.Debug()
 	db.SingularTable(true)
+	db.AutoMigrate(&UserAuth{}, &User{})
 	db.Callback().Create().Replace("gorm:update_time_stamp", updateTimeStampForCreateCallback)
 	db.Callback().Update().Replace("gorm:update_time_stamp", updateTimeStampForUpdateCallback)
 	db.Callback().Delete().Replace("gorm:delete", deleteCallback)
@@ -49,17 +51,17 @@ func CloseDB() {
 	defer db.Close()
 }
 
-// updateTimeStampForCreateCallback will set `CreatedAt`, `ModifiedAt` when creating
+// updateTimeStampForCreateCallback will set `CreatedAt`, `UpdatedAt` when creating
 func updateTimeStampForCreateCallback(scope *gorm.Scope) {
 	if !scope.HasError() {
-		nowTime := time.Now().Unix()
+		nowTime := time.Now()
 		if createTimeField, ok := scope.FieldByName("CreatedAt"); ok {
 			if createTimeField.IsBlank {
 				createTimeField.Set(nowTime)
 			}
 		}
 
-		if modifyTimeField, ok := scope.FieldByName("ModifiedAt"); ok {
+		if modifyTimeField, ok := scope.FieldByName("UpdatedAt"); ok {
 			if modifyTimeField.IsBlank {
 				modifyTimeField.Set(nowTime)
 			}
@@ -67,10 +69,10 @@ func updateTimeStampForCreateCallback(scope *gorm.Scope) {
 	}
 }
 
-// updateTimeStampForUpdateCallback will set `ModifiedAt` when updating
+// updateTimeStampForUpdateCallback will set `UpdatedAt` when updating
 func updateTimeStampForUpdateCallback(scope *gorm.Scope) {
 	if _, ok := scope.Get("gorm:update_column"); !ok {
-		scope.SetColumn("ModifiedAt", time.Now().Unix())
+		scope.SetColumn("UpdatedAt", time.Now())
 	}
 }
 

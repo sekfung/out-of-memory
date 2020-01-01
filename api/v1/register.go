@@ -12,19 +12,20 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-package api
+package v1
 
 import (
 	"github.com/gin-gonic/gin"
+	"outofmemory/api"
 	"outofmemory/errors"
 	"outofmemory/service"
 	"outofmemory/utils"
 )
 
 type registerForm struct {
-	Identifier     string `form:"identifier" validate:"required" json:"identifier"`
+	Identifier     string `form:"identifier" validate:"ascii,max=100" json:"identifier"`
 	Credential     string `form:"credential" validate:"required" json:"credential"`
-	IdentityType   string `form:"identity_type" validate:"required" json:"identity_type"`
+	IdentityType   string `form:"identity_type" validate:"oneof=username email phone github weibo wechat" json:"identity_type"`
 	IdentifierFrom uint8  `form:"identifier_from" validate:"oneof=0 1" json:"identifier_from"`
 }
 
@@ -39,10 +40,10 @@ type registerForm struct {
 // @Router /register [post]
 func Register(c *gin.Context) {
 	var (
-		appG = Gin{C: c}
+		appG = api.Gin{C: c}
 		form registerForm
 	)
-	err := BindAndValid(c, &form)
+	err := api.BindAndValid(c, &form)
 	if err != nil {
 		appG.Response(err.(*errors.AppError).ErrCode, nil)
 		return

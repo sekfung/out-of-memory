@@ -24,18 +24,15 @@ import (
 )
 
 type UserAuth struct {
-	Id             uint32 `json:"-"`
-	Uid            uint32 `json:"uid"`             // user id
-	Identifier     string `json:"identifier"`      // login identity
-	Credential     string `json:"credential"`      // password or token
-	IdentifierFrom uint8  `json:"identifier_from"` // identifier from (0: site in , 1: site out)
-	IdentityType   string `json:"identity_type"`   // login type (email, phone, username, github, weibo...btw: email, phone, username is belong to site in)
-	Verified       bool   `json:"verified"`        // is verified
-	VerifyDate     int64  `json:"verify_date"`     // verify date
-	LastLoginTime  int64  `json:"last_login_time"`
-	CreatedAt      int64  `gorm:"created" json:"-"`
-	UpdatedAt      int64  `gorm:"updated" json:"-"`
-	DeletedAt      int64  `gorm:"deleted" json:"-"`
+	BaseModel
+	Uid            uint32     `gorm:"not null;index:uid"json:"uid"`                                     // user id
+	Identifier     string     `gorm:"not null;index:identifier"json:"identifier"`                       // login identity
+	Credential     string     `gorm:"not null;index:credential"json:"credential"`                       // password or token
+	IdentifierFrom uint8      `gorm:"not null;default: 0;index:identifier_from" json:"identifier_from"` // identifier from (0: site in , 1: site out)
+	IdentityType   string     `gorm:"not null;index:identity_type"json:"identity_type"`                 // login type (email, phone, username, github, weibo...btw: email, phone, username is belong to site in)
+	Verified       bool       `json:"verified"`                                                         // is verified
+	VerifyDate     *time.Time `json:"verify_date"`                                                      // verify date
+	LastLoginTime  time.Time  `json:"last_login_time"`
 }
 
 // 新用户注册
@@ -50,7 +47,7 @@ func Register(data map[string]interface{}) (*UserAuth, error) {
 	uid := uuid.New().ID()
 	userAuth.Uid = uid
 	// update login time
-	userAuth.LastLoginTime = time.Now().Unix()
+	userAuth.LastLoginTime = time.Now()
 
 	// generate bcrypt password, if register by website inside
 	if userAuth.IdentifierFrom == 0 {
@@ -60,11 +57,14 @@ func Register(data map[string]interface{}) (*UserAuth, error) {
 		}
 		userAuth.Credential = string(hash)
 	}
-	session := db.Begin()
-	defer session.Close()
-	err := session.Begin()
-	if err = session.Create(&userAuth); err != nil {
-		session.Rollback()
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	if err := tx.Create(&userAuth).Error; err != nil {
+		tx.Rollback()
 		return &userAuth, errors.ErrUnknownError
 	}
 
@@ -83,12 +83,16 @@ func Register(data map[string]interface{}) (*UserAuth, error) {
 	if userAuth.IdentityType == "email" {
 		user.Email = userAuth.Identifier
 	}
-	if err := session.Create(&user).Error; err != nil {
-		session.Rollback()
+	if err := tx.Create(&user).Error; err != nil {
+		tx.Rollback()
 		return &userAuth, errors.ErrUnknownError
 	}
 
-	err = session.Commit()
+	err := tx.Commit().Error
+	if err != nil {
+		tx.Rollback()
+		return &userAuth, errors.ErrUnknownError
+	}
 
 	return &userAuth, nil
 }
@@ -100,8 +104,9 @@ func CheckUserAuth(param []byte) (*UserAuth, error) {
 	)
 	_ = json.Unmarshal(param, &userAuthForm)
 
-	err := db.Exec("select uid, credential from user_auth where identifier = ? and identity_type = ?",
-		userAuthForm.Identifier, userAuthForm.IdentityType).Find(&userResult).Error
+	err := db.Select("identifier, credential, identifier_from").
+		Where("identifier = ? AND identity_type = ? AND identifier_from = ?", userAuthForm.Identifier, userAuthForm.IdentityType, userAuthForm.IdentifierFrom).
+		First(&userResult).Error
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
@@ -110,19 +115,24 @@ func CheckUserAuth(param []byte) (*UserAuth, error) {
 			return nil, errors.ErrUnknownError
 		}
 	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(userResult.Credential), []byte(userAuthForm.Credential))
-	if err != nil {
-		return nil, errors.ErrIncorrectIdentifierOrCredential
+	if userResult.IdentifierFrom == 0 {
+		err = bcrypt.CompareHashAndPassword([]byte(userResult.Credential), []byte(userAuthForm.Credential))
+		if err != nil {
+			return nil, errors.ErrIncorrectIdentifierOrCredential
+		}
+	} else {
+		if userAuthForm.Credential == userResult.Credential {
+			return &userResult, nil
+		} else {
+			return nil, errors.ErrIncorrectIdentifierOrCredential
+		}
 	}
-
 	return &userResult, nil
 }
 
 func CheckUserExist(identifier string, identityType string) (bool, error) {
 	var userAuth UserAuth
 	err := db.Select("uid").Where("identifier = ?", identifier).Where("identity_type = ?", identityType).First(&userAuth).Error
-	//err := engine.SQL("select uid from user_auth where identifier = ? and identity_type = ?", identifier, identityType).Find(&userAuth)
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:

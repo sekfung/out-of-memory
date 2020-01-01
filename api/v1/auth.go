@@ -12,20 +12,21 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-package api
+package v1
 
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"outofmemory/api"
 	"outofmemory/errors"
 	"outofmemory/service"
 	"outofmemory/utils"
 )
 
 type authForm struct {
-	Identifier     string `form:"identifier" validate:"required" json:"identifier"`
+	Identifier     string `form:"identifier" validate:"ascii,max=100" json:"identifier"`
 	Credential     string `form:"credential" validate:"required" json:"credential"`
-	IdentityType   string `form:"identity_type" validate:"required" json:"identity_type"`
+	IdentityType   string `form:"identity_type" validate:"oneof=username email phone github weibo wechat" json:"identity_type"`
 	IdentifierFrom uint8  `form:"identifier_from" validate:"oneof=0 1" json:"identifier_from"`
 }
 
@@ -37,13 +38,13 @@ type authForm struct {
 // @Param identity_type query string true "IdentityType, such as username, email, phone, github, weibo, wechat..."
 // @Param identifier_from query int true "IdentifierFrom, range is 0 to 1,  0 means website inside, 1 is outside"
 // @Success 200 {string} json "{"code":200,"data":[],"msg":"ok"}"
-// @Router /auth [post]
+// @Router /v1/auth [post]
 func GetToken(c *gin.Context) {
 	var (
-		appG = Gin{C: c}
+		appG = api.Gin{C: c}
 		form authForm
 	)
-	err := BindAndValid(c, &form)
+	err := api.BindAndValid(c, &form)
 	if err != nil {
 		appG.Response(err.(*errors.AppError).ErrCode, nil)
 		return

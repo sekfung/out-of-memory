@@ -44,5 +44,4 @@ func main()  {
 	if err != nil {
 		log.Fatalf("Server error %v", err)
 	}
-	models.CloseDB()
 }

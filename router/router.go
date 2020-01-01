@@ -18,7 +18,6 @@ import (
 	"github.com/gin-gonic/gin"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/swaggo/gin-swagger/swaggerFiles"
-	"outofmemory/api"
 	"outofmemory/api/v1"
 	_ "outofmemory/docs"
 	auth "outofmemory/middleware"
@@ -31,8 +30,8 @@ func InitRouter() *gin.Engine {
 	r.Use(gin.Recovery())
 	gin.SetMode(settings.ServerSetting.RunMode)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	r.POST("/auth", api.GetToken)
-	r.POST("/register", api.Register)
+	r.POST("/v1/auth", v1.GetToken)
+	r.POST("/v1/register", v1.Register)
 
 	apiV1 := r.Group("/api/v1")
 	// tag
