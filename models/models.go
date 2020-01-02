@@ -39,7 +39,7 @@ func Setup() {
 	}
 	db = db.Debug()
 	db.SingularTable(true)
-	db.AutoMigrate(&UserAuth{}, &User{})
+	db.AutoMigrate(&UserAuth{}, &User{}, &Role{}, &UserRole{}, &Permission{}, &RolePermission{})
 	db.Callback().Create().Replace("gorm:update_time_stamp", updateTimeStampForCreateCallback)
 	db.Callback().Update().Replace("gorm:update_time_stamp", updateTimeStampForUpdateCallback)
 	db.Callback().Delete().Replace("gorm:delete", deleteCallback)
