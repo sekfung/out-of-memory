@@ -32,7 +32,8 @@ type UserAuth struct {
 	IdentityType   string     `gorm:"not null;index:identity_type"json:"identity_type"`                 // login type (email, phone, username, github, weibo...btw: email, phone, username is belong to site in)
 	Verified       bool       `json:"verified"`                                                         // is verified
 	VerifyDate     *time.Time `json:"verify_date"`                                                      // verify date
-	LastLoginTime  time.Time  `json:"last_login_time"`
+	LastLoginTime  time.Time  `gorm:"not null" json:"last_login_time"`
+	LastLoginIp    string     `gorm:"not null"`
 }
 
 // 新用户注册
@@ -104,7 +105,7 @@ func CheckUserAuth(param []byte) (*UserAuth, error) {
 	)
 	_ = json.Unmarshal(param, &userAuthForm)
 
-	err := db.Select("identifier, credential, identifier_from").
+	err := db.Select("uid, identifier, credential, identifier_from").
 		Where("identifier = ? AND identity_type = ? AND identifier_from = ?", userAuthForm.Identifier, userAuthForm.IdentityType, userAuthForm.IdentifierFrom).
 		First(&userResult).Error
 	if err != nil {

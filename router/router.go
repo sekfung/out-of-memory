@@ -30,10 +30,9 @@ func InitRouter() *gin.Engine {
 	r.Use(gin.Recovery())
 	gin.SetMode(settings.ServerSetting.RunMode)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	r.POST("/v1/auth", v1.GetToken)
-	r.POST("/v1/register", v1.Register)
-
-	apiV1 := r.Group("/api/v1")
+	apiV1 := r.Group("/v1")
+	apiV1.POST("/auth", v1.GetToken)
+	apiV1.POST("/register", v1.Register)
 	// tag
 	apiV1.GET("/tags", v1.GetTags)
 	apiV1.GET("/tags/:id", v1.GetTagById)
@@ -56,15 +55,16 @@ func InitRouter() *gin.Engine {
 		// article router
 		apiV1.POST("/articles", v1.AddArticle)
 
+        // user router
+		apiV1.PUT("/users/:id", v1.UpdateUserInfo)
+		apiV1.GET("/users/:id", v1.GetUserInfo)
+
 	}
 
 	// need user permission
-	needPermission := r.Group("/api/v1")
-	needPermission.Use(auth.JWT())
-	needPermission.Use(auth.CheckUserPermission())
+	apiV1.Use(auth.CheckUserPermission())
 	{
-		needPermission.PUT("/users/:id", v1.UpdateUserInfo)
-		needPermission.GET("/users/:id", v1.GetUserInfo)
+
 	}
 
 	return r

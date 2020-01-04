@@ -7,7 +7,7 @@ import (
 )
 
 type userClaims struct {
-	UID uint32
+	UID uint32 `json:"uid"`
 	jwt.StandardClaims
 }
 
@@ -15,7 +15,7 @@ var jwtSecret = []byte(settings.ApiSetting.JwtSecret)
 
 func GenerateToken(uid uint32) (string, error) {
 	nowTime := time.Now()
-	expireTime := nowTime.Add(24 * time.Hour * 365)
+	expireTime := nowTime.Add(24 * time.Second * 7)
 	claims := userClaims{
 		uid,
 		jwt.StandardClaims{
