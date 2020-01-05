@@ -21,34 +21,30 @@ import (
 
 type User struct {
 	BaseModel
-	Uid       uint32 `json:"uid"`
-	Username  string `json:"username"`
-	Gender    string `gorm:"default:'m'" json:"gender"`
-	Email     string `json:"email"`
-	Birthday  int64  `json:"birthday"`
-	Website   string `json:"website"`
-	Phone     string `json:"phone"`
-	AvatarUrl string `json:"avatar_url"`
+	Uid       uint32 `gorm:"not null;index:uid" json:"uid"`
+	Username  string `gorm:"not null;index:username" json:"username"`
+	Gender    string `gorm:"not null;default:'m'" json:"gender"`
+	Email     string `gorm:"not null;default:''"json:"email"`
+	BirthdayY uint32 `gorm:"type:smallint;default:1900" json:"birthday_y"`
+	BirthdayM uint8  `gorm:"type:smallint;default:1" json:"birthday_m"`
+	BirthdayD uint8  `gorm:"type:smallint;default:1" json:"birthday_d"`
+	Website   string `gorm:"not null;default:''"json:"website"`
+	Phone     string `gorm:"not null;default:''" json:"phone"`
+	AvatarUrl string `gorm:"not null;default:''"json:"avatar_url"`
 }
 
 func GetUserInfo(uid uint32) (interface{}, error) {
-	user, err := exitUserByUID(uid)
+	user := User{}
+	err := db.Where("uid = ?", uid).Find(&user).Error
 	if err != nil {
-		return nil, err
+		switch err {
+		case gorm.ErrRecordNotFound:
+			return nil, errors.ErrUserNotExist
+		default:
+			return nil, errors.ErrUnknownError
+		}
 	}
-	tags := mustGetTagsForUser(uid)
-	categories := mustGetCategoryForUser(uid)
-	result := map[string]interface{}{
-		"user":       user,
-		"tags":       tags,
-		"categories": categories,
-	}
-	return result, nil
-}
-
-// internal method
-func getUserInfo(uid uint32) (*User, error) {
-	return exitUserByUID(uid)
+	return &user, nil
 }
 
 func UpdateUserInfo(data map[string]interface{}) error {
@@ -66,7 +62,7 @@ func UpdateUserInfo(data map[string]interface{}) error {
 
 func exitUserByUID(uid uint32) (*User, error) {
 	user := User{}
-	err := db.Exec("select * from user where uid = ?", uid).First(&user).Error
+	err := db.Select("uid").Where("uid = ?", uid).Find(&user).Error
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
@@ -78,13 +74,6 @@ func exitUserByUID(uid uint32) (*User, error) {
 	return &user, nil
 }
 
-//func (u *User) BeforeCreate(scope *gorm.Scope) error {
-//	// generate a unique short user id
-//	uid := uuid.New().ID()
-//	err := scope.SetColumn("uid", uid)
-//	return err
-//}
-
 func parseUserData(data map[string]interface{}) User {
 	user := User{
 		Uid:       data["uid"].(uint32),
@@ -92,7 +81,9 @@ func parseUserData(data map[string]interface{}) User {
 		Email:     data["email"].(string),
 		Phone:     data["phone"].(string),
 		AvatarUrl: data["avatar_url"].(string),
-		Birthday:  data["birthday"].(int64),
+		BirthdayY: data["birthday_y"].(uint32),
+		BirthdayM: data["birthday_m"].(uint8),
+		BirthdayD: data["birthday_d"].(uint8),
 		Website:   data["website"].(string),
 	}
 	return user

@@ -8,7 +8,9 @@ type UserInfo struct {
 	Email    string
 	NickName string
 	Avatar   string
-	BirthDay int64
+	BirthDayYear uint32
+	BirthDayMonth uint8
+	BirthDayDay uint8
 	WebSite  string
 	Phone    string
 }
@@ -29,7 +31,9 @@ func makeUserData(user *UserInfo) map[string]interface{} {
 		"email":      user.Email,
 		"phone":      user.Phone,
 		"website":    user.WebSite,
-		"birthday":   user.BirthDay,
+		"birthday_y":   user.BirthDayYear,
+		"birthday_mo":   user.BirthDayMonth,
+		"birthday_d":   user.BirthDayDay,
 		"avatar_url": user.Avatar,
 	}
 	return data
